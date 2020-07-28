@@ -1,0 +1,59 @@
+div {
+	/*
+	border-width:1px;
+	border-color:red;
+	border-style:solid;
+	*/
+}
+
+html, body { height: 100%; }
+
+#search-term-history {
+	height: calc(100%);
+	margin-left:8px;
+	margin-top:3px;
+}
+
+#search-box {
+	border-width:3px;
+	border-color:black;
+	border-style:solid;
+	height:30px;
+	margin:3px;
+}
+
+#search-term-entry {
+	float:left;
+	width:calc(100% - 53px);
+	height:calc(100%);
+	overflow: hidden;
+	white-space: pre-wrap;
+}
+
+
+
+#search-button {
+	text-align:right;
+	float:right;
+	margin:3px;
+}
+
+.search-term:hover {
+	border-width:2px;
+	border-color:red;
+	border-style:solid;
+}
+
+.search-term {
+	margin:2px;
+	padding:2px;
+}
+
+.search-term-selected {
+	color:white;
+	background:black;
+}
+
+
+
+

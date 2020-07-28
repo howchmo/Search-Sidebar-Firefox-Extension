@@ -1,0 +1,28 @@
+{
+
+  "manifest_version": 2,
+  "name": "searchsidebar",
+  "version": "1.0",
+  "description": "searchsidebar example",
+
+  "icons": {
+    "48": "icon.png"
+  },
+
+	"sidebar_action": {
+		"default_title": "Search Sidebar",
+		"default_panel": "searchsidebar.html",
+		"default_icon": "icon.png"
+	},
+
+  "permissions": ["storage", "tabs", "search", "tabHide" ],
+
+	 "commands": {
+    "_execute_sidebar_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y"
+      }
+    }
+  }
+
+}
