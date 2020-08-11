@@ -7,14 +7,14 @@
 
   "icons": {
     "48": "icon.png"
-  },
-
+  }
+	,
 	"sidebar_action": {
 		"default_title": "Search Sidebar",
 		"default_panel": "searchsidebar.html",
 		"default_icon": "icon.png"
-	},
-
+	}
+	,
   "permissions": ["storage", "tabs", "search", "tabHide" ],
 
 	 "commands": {
@@ -24,5 +24,10 @@
       }
     }
   }
-
+	,
+	"browser_specific_settings": {
+		"gecko": {
+			"id": "Search-Sidebar-Firefox-Extension@howardmall.net"
+		}
+	}
 }
