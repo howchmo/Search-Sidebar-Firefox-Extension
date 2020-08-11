@@ -18,7 +18,11 @@ function clickingSearchTerm()
 		$('.search-term:contains("'+search_term+'")').removeClass("search-term-selected");
 	search_term = $(this).html();
 	$(this).addClass("search-term-selected");
-	if( isNaN(search_terms_tabs[search_term][0]) )
+	if( search_terms_tabs[search_term].length == 0 )
+	{
+		search();
+	}
+	else( isNaN(search_terms_tabs[search_term][0]) )
 	{
 		for( var i=0; i<search_terms_tabs[search_term].length; i++ )
 		{
@@ -83,6 +87,20 @@ function onError(e) {
 	console.error(e);
 }
 
+function determineWithTabToHighlight()
+{
+	// default to the first tab
+	var highlightedTabId = search_terms_tabs[search_term][0];
+
+	//  This is where you want to base this on a value that is stored
+	for( int i = 0; i<search_terms_tabs[search_term].length; i++ )
+	{
+		if( typeof search_terms_tabs[search_term][i] === "object" )
+			return search_terms_tabs[search_term][i].highlight;
+	}
+	return highlightedTabId;
+}
+
 function swapSearchTermTabs()
 {
 	// if( search_terms_tabs[search_term].length > 0 )
@@ -91,8 +109,9 @@ function swapSearchTermTabs()
 		{
 			console.log("swap "+search_term);
 			console.log("swap "+JSON.stringify(search_terms_tabs[search_term]));
-	
-			var tabIdToHighlight = search_terms_tabs[search_term][0];
+
+			var tabIdToHighlight = determineWhichTabToHighlight();
+
 			browser.tabs.get(tabIdToHighlight).then( function( info )
 			{
 				console.log(JSON.stringify(info.index));
