@@ -4,7 +4,7 @@
 
 var myWindowId;
 
-var search_terms_tabs = {};
+var search_terms = {};
 var search_term = "";
 
 browser.windows.getCurrent({populate: true}).then((windowInfo) => {
@@ -14,128 +14,133 @@ browser.windows.getCurrent({populate: true}).then((windowInfo) => {
 
 function clickingSearchTerm()
 {
+	// Highlight the search term in the sidebar
 	if( search_term != "" )
 		$('.search-term:contains("'+search_term+'")').removeClass("search-term-selected");
 	search_term = $(this).html();
 	$(this).addClass("search-term-selected");
-	if( search_terms_tabs[search_term].length == 0 )
+	
+	if( search_terms[search_term].tabs.length == 0 )
 	{
-		search();
-	}
-	else( isNaN(search_terms_tabs[search_term][0]) )
-	{
-		for( var i=0; i<search_terms_tabs[search_term].length; i++ )
+		if( search_terms[search_term].links.length == 0 )
+			searchAgain(search_term);
+		else
 		{
-			browser.tabs.create({url:search_terms_tabs[search_term][i]}).then( function( tab )
+			for( var i=0; i<search_terms[search_term].links.length; i++ )
 			{
-				search_terms_tabs[search_term].shift();
-			});
+				browser.tabs.create({url:search_terms[search_term].links[i]}).then( function( tab )
+				{
+					search_terms[search_term].links.splice(i,0);
+				});
+			}
 		}
 	}
 	setTimeout(swapSearchTermTabs,100);
 }
 
-function checkSearchTerms()
+function loadSearchTerms()
 {
-	browser.storage.local.get("search_terms_links").then( function( item )
+	browser.storage.local.get("search_terms").then( function( item )
 	{
-		search_terms_tabs = item.search_terms_links;
-		for ( var key in search_terms_tabs )
+		search_terms = item.search_terms;
+		for( key in search_terms )
+			search_terms[key].tabs = []; 
+		console.log("load "+JSON.stringify(search_terms));
+		for ( var key in search_terms )
 		{
 			div=$("<div/>", {
 				class: "search-term",
 				html: key
 			}).click( clickingSearchTerm );
 			$("#search-term-history").prepend(div);
-			search_terms = key;
+			search_term = key;
 		}
 	}
 	,
 	function(e) {
-		browser.storage.local.set({"search_terms_tabs":search_terms_tabs});
+		browser.storage.local.set({"search_terms":search_terms});
 	}
 	);
 }
 
 async function saveSearchTerms()
 {
-	console.log("saving "+JSON.stringify(search_terms_tabs));
-	var search_terms_links = {};
-	for( var key in search_terms_tabs )
+	for( var key in search_terms )
 	{
-		search_terms_links[key] = [];
-		for( var i=0; i<search_terms_tabs[key].length; i++ )
+		var links = [];
+		//if( search_terms[key].links.length < search_terms[key].tabs.length )
+		//{
+			//search_terms[key].links = [];
+		for( var i=0; i<search_terms[key].tabs.length; i++ )
 		{
-			var url = "";
-			var tabItem = search_terms_tabs[key][i]; 
-			if( isNaN(tabItem) )
-				url = tabItem;
-			else
-			{
-				var tabPromise = await browser.tabs.get(tabItem);
-				url = tabPromise.url;
-			}
-			if( key != "" )
-				search_terms_links[key].push(url);
+			var tabPromise = await browser.tabs.get(search_terms[key].tabs[i]);
+			links.push(tabPromise.url);
 		}
+		if( search_terms[key].links.length == 0 )
+			search_terms[key].links = links;
+		//}
 	}
-	browser.storage.local.set({"search_terms_links":search_terms_links});
-	console.log("DONE saving "+JSON.stringify(search_terms_links));
+	await browser.storage.local.set({"search_terms":search_terms});
+	console.log("DONE saving ");
+	for( key in search_terms )
+	{
+		console.log("            "+key+" : "+JSON.stringify(search_terms[key]));
+		if( search_terms[key].tabs.length == search_terms[key].links.length )
+			search_terms[key].links = [];
+	}
 }
 
 function onError(e) {
 	console.error(e);
 }
 
-function determineWithTabToHighlight()
+function determineTabToHighlight()
 {
+	var highlightTabIndex = 0;
+	if( typeof search_terms[search_term].highlight !== "undefined" )
+		highlightTabIndex = search_terms[search_term].highlight;
 	// default to the first tab
-	var highlightedTabId = search_terms_tabs[search_term][0];
-
-	//  This is where you want to base this on a value that is stored
-	for( int i = 0; i<search_terms_tabs[search_term].length; i++ )
-	{
-		if( typeof search_terms_tabs[search_term][i] === "object" )
-			return search_terms_tabs[search_term][i].highlight;
-	}
+	var highlightedTabId = search_terms[search_term].tabs[highlightTabIndex];
 	return highlightedTabId;
 }
 
 function swapSearchTermTabs()
 {
-	// if( search_terms_tabs[search_term].length > 0 )
-	{//for( key in search_terms_tabs )
-		browser.tabs.show(search_terms_tabs[search_term]).then( function()
-		{
-			console.log("swap "+search_term);
-			console.log("swap "+JSON.stringify(search_terms_tabs[search_term]));
-
-			var tabIdToHighlight = determineWhichTabToHighlight();
-
-			browser.tabs.get(tabIdToHighlight).then( function( info )
+	if( Object.entries(search_terms).length != 1 )
+	{
+		if( search_terms[search_term].tabs.length > 0 )
+		{//for( key in search_terms_tabs )
+			browser.tabs.show(search_terms[search_term].tabs).then( function()
 			{
-				console.log(JSON.stringify(info.index));
-				tabsToHighlight = [ info.index ];
+				var tabIdToHighlight = determineTabToHighlight();
+				browser.tabs.get(tabIdToHighlight).then( function( info )
+				{
+					tabsToHighlight = [ info.index ];
 					browser.tabs.highlight({tabs:tabsToHighlight}).then( function() {
-					console.log("Hightlight "+info.index);
-					/*
-					for( key in search_terms_tabs )
-						if( key != search_term )
-							browser.tabs.hide(search_terms_tabs[key]);
-					*/
+						// console.log("hightlight "+info.index);
+					});
 				});
 			});
+			setTimeout( function() {
+				for( key in search_terms )
+					if( key != search_term )
+						if( search_terms[key].tabs.length > 0 )
+							browser.tabs.hide(search_terms[key].tabs);
+			}, 10);
+		}
+	}
+}
+
+function searchAgain( search_term_entry )
+{
+	if( search_term_entry != "" )
+	{
+		search_term = search_term_entry;
+		browser.search.search({
+			query: search_term
+		}).then( function( searchInfo ) {
+			setTimeout(swapSearchTermTabs,100);
 		});
-		setTimeout( function() {
-		for( key in search_terms_tabs )
-			if( key != search_term )
-				if( search_terms_tabs[key].length > 0 )
-					if( !isNaN(search_terms_tabs[key][0]) )
-					{
-						browser.tabs.hide(search_terms_tabs[key]);
-						console.log("hide "+search_terms_tabs[key]);
-					}
-		}, 10);
 	}
 }
 
@@ -145,7 +150,7 @@ function search()
 	if( search_term_entry != "" )
 	{
 		div=$("<div/>", {
-			class: "search-term",
+			class: "search-term search-term-selected",
 			html: search_term_entry
 		}).click( clickingSearchTerm );
 		$("#search-term-history").prepend(div);
@@ -157,7 +162,7 @@ function search()
 		browser.search.search({
 			query: search_term
 		}).then( function( searchInfo ) {
-			 swapSearchTermTabs();
+			setTimeout(swapSearchTermTabs,100);
 		});
 	}
 }
@@ -171,12 +176,12 @@ function findObjectInArray( array, key, value )
 		if( item == value )
 			return i;
 	}
-	return undefined
+	return item;
 }
 
 $(function() {
 
-checkSearchTerms();
+loadSearchTerms();
 
 $("#search-button").mousedown( function() {
 	search();
@@ -191,20 +196,39 @@ $("#search-box").on("keyup", function(e) {
 browser.tabs.onCreated.addListener((tab) => {
 	if( search_term !== "" )
 	{
-		if( typeof search_terms_tabs == "undefined" )
-			search_terms_tabs = {};
-		if( typeof search_terms_tabs[search_term] == "undefined" )
-			search_terms_tabs[search_term] = [];
-		search_terms_tabs[search_term].push(tab.id);
+		if( typeof search_terms == "undefined" )
+			search_terms = {};
+		if( typeof search_terms[search_term] == "undefined" )
+			search_terms[search_term] = {
+				highlight:0,
+				tabs:[],
+				links:[]
+			};
+		if( !search_terms[search_term].tabs.includes(tab.id) )
+			search_terms[search_term].tabs.push(tab.id);
 		browser.tabs.onUpdated.addListener(
 			function( tabId, changeInfo, tabInfo )
 			{
-				if( changeInfo.status == "complete" )
+				if( typeof changeInfo !== "undefined" )
 				{
-					tab["search_term"] = search_term;
-					saveSearchTerms();
+					// console.log("onUpdated push "+tabId);
+					// console.log("               "+JSON.stringify(changeInfo));
+					// console.log("               "+JSON.stringify(tabInfo));
+	
+					if( changeInfo.status == "complete" )
+					{
+						console.log("onUpdated  "+JSON.stringify(changeInfo.status));
+						{
+								// if( search_terms[search_term].links.length < search_terms[search_term].tabs.length )
+								//	search_terms[search_term].links.push(tabInfo.url);
+								console.log("onUpdated "+search_term);
+								console.log("          "+JSON.stringify(search_terms[search_term].tabs));
+								console.log("          "+JSON.stringify(search_terms[search_term].links));
+								saveSearchTerms();
+						}
+					}
 				}
-					// browser.tabs.onUpdated.removeListener( listener );
+				// browser.tabs.onUpdated.removeListener( listener );
 			},
 			{
 				tabId:tab.id
@@ -213,20 +237,37 @@ browser.tabs.onCreated.addListener((tab) => {
 	}
 });
 
-
 browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
-	if( typeof search_terms_tabs !== "undefined" )
+	if( typeof search_terms[search_term].tabs !== "undefined" )
 	{
-		console.log(JSON.stringify(search_terms_tabs));
-		var i = findObjectInArray(search_terms_tabs[search_term], "id",tabId);
+		var i = findObjectInArray(search_terms[search_term].tabs, "id",tabId);
+		console.log("Remove "+search_term+" - "+i);
 		if( typeof i !== "undefined" )
 		{
-			search_terms_tabs[search_term].splice(i,1);
-			console.log(JSON.stringify(search_terms_tabs));
+			search_terms[search_term].tabs.splice(i,1);
+			search_terms[search_term].links.splice(i,1);
+			/*
+			console.log("onRemove "+JSON.stringify(search_terms[search_term].links));
+			search_terms[search_term].links.splice(i,1);
+			console.log("onRemove "+JSON.stringify(search_terms[search_term],links));
+			console.log("onRemove "+JSON.stringify(search_terms[search_term].tabs));
+			console.log("onRemove "+JSON.stringify(search_terms[search_term].tabs));
+			*/
+			saveSearchTerms();
 		}
 	}
 });
 
+browser.tabs.onHighlighted.addListener((highlightInfo) => {
+	for( var i=0; i<search_terms[search_term].tabs.length; i++ )
+	{
+		if( search_terms[search_term].tabs[i] == highlightInfo.tabIds[0] )
+		{
+			search_terms[search_term].highlight = i;
+		}
+	}
+	saveSearchTerms();
 });
 
+});
 
