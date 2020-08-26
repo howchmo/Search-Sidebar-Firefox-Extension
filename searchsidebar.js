@@ -6,6 +6,7 @@ var myWindowId;
 
 var search_terms = {};
 var search_term = "";
+var creatingForTheFirstTime = true;
 
 browser.windows.getCurrent({populate: true}).then((windowInfo) => {
 	if( typeof myWindowId == "undefined" )
@@ -31,6 +32,7 @@ function clickingSearchTerm()
 				browser.tabs.create({url:search_terms[search_term].links[i]}).then( function( tab )
 				{
 					search_terms[search_term].links.splice(i,0);
+					console.log("clickingSearchTerm() "+JSON.stringify(search_terms[search_term]));
 				});
 			}
 		}
@@ -113,11 +115,13 @@ function swapSearchTermTabs()
 			browser.tabs.show(search_terms[search_term].tabs).then( function()
 			{
 				var tabIdToHighlight = determineTabToHighlight();
+				// console.log("tabToHighlight = "+tabIdToHighlight);
 				browser.tabs.get(tabIdToHighlight).then( function( info )
 				{
 					tabsToHighlight = [ info.index ];
 					browser.tabs.highlight({tabs:tabsToHighlight}).then( function() {
 						// console.log("hightlight "+info.index);
+						// saveSearchTerms();
 					});
 				});
 			});
@@ -259,6 +263,9 @@ browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
 });
 
 browser.tabs.onHighlighted.addListener((highlightInfo) => {
+	if( search_terms[search_term].links.length == 0 )
+	{
+	console.log("onHighlighted "+JSON.stringify(highlightInfo));
 	for( var i=0; i<search_terms[search_term].tabs.length; i++ )
 	{
 		if( search_terms[search_term].tabs[i] == highlightInfo.tabIds[0] )
@@ -266,7 +273,8 @@ browser.tabs.onHighlighted.addListener((highlightInfo) => {
 			search_terms[search_term].highlight = i;
 		}
 	}
-	saveSearchTerms();
+		saveSearchTerms();
+	}
 });
 
 });
